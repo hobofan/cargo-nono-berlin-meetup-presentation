@@ -1,49 +1,281 @@
 <!doctype html>
 <html>
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-		<title>reveal.js</title>
+                <title>reveal.js</title>
 
-		<link rel="stylesheet" href="css/reset.css">
-		<link rel="stylesheet" href="css/reveal.css">
-		<link rel="stylesheet" href="css/theme/black.css">
+                <link rel="stylesheet" href="css/reset.css">
+                <link rel="stylesheet" href="css/reveal.css">
+                <link rel="stylesheet" href="css/theme/night.css">
 
-		<!-- Theme used for syntax highlighting of code -->
-		<link rel="stylesheet" href="lib/css/monokai.css">
+                <!-- Theme used for syntax highlighting of code -->
+                <link rel="stylesheet" href="lib/css/zenburn.css">
 
-		<!-- Printing and PDF exports -->
-		<script>
-			var link = document.createElement( 'link' );
-			link.rel = 'stylesheet';
-			link.type = 'text/css';
-			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
-			document.getElementsByTagName( 'head' )[0].appendChild( link );
-		</script>
-	</head>
-	<body>
-		<div class="reveal">
-			<div class="slides">
-				<section>Slide 1</section>
-				<section>Slide 2</section>
-			</div>
-		</div>
+                <!-- Printing and PDF exports -->
+                <script>
+                        var link = document.createElement( 'link' );
+                        link.rel = 'stylesheet';
+                        link.type = 'text/css';
+                        link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+                        document.getElementsByTagName( 'head' )[0].appendChild( link );
+                </script>
+        </head>
+        <body>
+                <div class="reveal">
+                  <div class="slides">
+                    <section data-markdown>
+                      <textarea data-template>
+                        ## cargo-nono
 
-		<script src="js/reveal.js"></script>
+                        The pitfals of `#![no_std]` and how `cargo-nono` can help you avoid them
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        <h4>What is this <code>#![no_std]</code> thing? <span class="fragment">Why should I care?</span></h4>
+                        <div class="fragment">
+                          - <code>#![no_std]</code> is a crate-wide attribute <code>#![...]</code>
+                        </div>
+                        <div class="fragment">
+                          - Rust with no... std... (= standard library)
+                        </div>
+                        <div class="fragment">
+                          - `std` has a lot of nice stuff: collections, io, fs, etc.
+                        </div>
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### Why would you not want to use std?
+                        <div class="fragment">
+                        because your target platform doesn't let you :/
+                        </div>
+                        <div class="fragment">
+                        - embedded (microcontrollers, etc.)
+                        </div>
+                        <div class="fragment">
+                        - (WASM)
+                        </div>
+                        <div class="fragment">
+                        - other more exotic targets
+                        </div>
+                        <div class="fragment">
+                        - highly-portable code in general!
+                        </div>
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### Then "just don't use it"!
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        <ul style="text-align: center;">
+                          <li class="fragment">
+                          `cargo new --bin my-fancy-new-crate`
+                          </li>
+                          <li class="fragment">
+                          Add `#![no_std]` to top of `main.rs`
+                          </li>
+                          <li class="fragment">
+                          Add e.g. `serde` as a dependency
+                          </li>
+                          <li class="fragment">
+                          `cargo build --target thumbv7em-none-eabi`
+                          </li>
+                          <li class="fragment">
+                          💥 (cryptic error that's hard to locate)
+                          </li>
+                        </ul>
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### Problem #1 "std infection"
 
-		<script>
-			// More info about config & dependencies:
-			// - https://github.com/hakimel/reveal.js#configuration
-			// - https://github.com/hakimel/reveal.js#dependencies
-			Reveal.initialize({
-				dependencies: [
-					{ src: 'plugin/markdown/marked.js' },
-					{ src: 'plugin/markdown/markdown.js' },
-					{ src: 'plugin/notes/notes.js', async: true },
-					{ src: 'plugin/highlight/highlight.js', async: true }
-				]
-			});
-		</script>
-	</body>
+                        - Any of your dependencies or sub-dependencies can cause std to be included, **and will do so by default via prelude**
+                        - And `#![no_std]` doesn't prevent that!
+                          - **Every** dependency has to have `#![no_std]` active
+                        - So have fun screening all your dependencies...
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### Extreme example: ref_eq
+
+                        <div class="fragment">
+                        - Simple crate to:
+                          "Determine if two borrowed pointers point to the same thing."
+                        </div>
+                        <div class="fragment">
+                        - 4 lines of code
+                        </div>
+                        <div class="fragment">
+                        - Has a fork that adds the `no_std` attribute
+                        </div>
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### `cargo-nono` to the rescue!
+
+                        <img data-src="./check_fail.png"/>
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        - Let's introduce some feature flags to our crate
+                        ```
+                          [dependencies]
+                          serde = { version = "1.0.80", default-features = false }
+
+                          [features]
+                          default = ["serde/std"]
+                        ```
+                        - And use them: <img data-src="./check_success.png"/>
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### BTS: Code parsing & resolving feature toggles
+
+                        - Detect
+                          - `#![no_std]`
+                          - `#![cfg_attr(not(feature = "std"), no_std)]`
+                          - or similar
+                        by parsing code with `syn` crate
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### BTS: Code parsing & resolving feature toggles
+
+                        - Check whether the required feature is actually active by resolving the features of all dependencies
+                        - Also had to replicate "buggy" behaviour: cargo#5730 - "Features of dependencies are enabled if they're enabled in build-dependencies"
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### Pain point: Cargo
+
+                        <div class="fragment">
+
+                        - Cargo is a huge monolithic dependency (no feature toggles)
+
+                        - Cargo is not built to be used as a library in cargo subcommands
+
+                        - So right now: `cargo metadata` + building your own algo
+                        </div>
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### Problem #2: "My library is building"
+
+                        <div class="fragment">
+                          - When building library crates, you don't get any feedback if your build will work for `#![no_std]` targets
+                        </div>
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### cargo-nono tries to help
+
+                        ```none
+                        - Did not find a #![no_std] attribute or a...
+                        ```
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### cargo-nono tries to help
+
+                        ```none
+                           --> src/main.rs:3:4
+                            |
+                        3   |use std::ops::Add;
+                            |    ^^^^^^^^^^^^^
+                        help: Try replacing `std::ops::Add` with `core::ops::Add`.
+                        ```
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### BTS: Code parsing & Rust documentation
+
+                        <div class="fragment">
+
+                          - Rust installation comes with docs by default: `rustup which rustdoc`
+                          - Check if there is a `core` equivalent for `std`
+
+                        </div>
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### Caveats 😬
+
+                        - **Very** heuristics dependent
+                          - e.g. breaks down with very complex `#![cfg_attr(all(not(...), ...))]`
+                        - Seems to work well with randomly sampled crates though
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### The future!
+
+                        <div class="fragment">
+
+                        - WIP feature to check build artifacts for `std` symbols
+                          - less heuristics, yay!
+                          - relies on nightly though (for now)
+                        </div>
+                        <div class="fragment">
+
+                        - `std`-aware Cargo: RFC#2663
+                        </div>
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### Thoughts
+
+                        - Proper solutions can take a long time to arrive
+                        - No shame in building/using hacky ones in the meantime
+                          - and advertising them (see also cargo-deadlinks 😉)
+
+                      </textarea>
+                    </section>
+                    <section data-markdown>
+                      <textarea data-template>
+                        ### Contributors & Co-maintainers welcome!
+
+                        <div class="fragment">
+                          @hobofan on Github/Twitter - I'm available as a freelancer from time to time
+                        </div>
+                      </textarea>
+                    </section>
+                  </div>
+                </div>
+
+                <script src="js/reveal.js"></script>
+
+                <script>
+                        // More info about config & dependencies:
+                        // - https://github.com/hakimel/reveal.js#configuration
+                        // - https://github.com/hakimel/reveal.js#dependencies
+                        Reveal.initialize({
+                                dependencies: [
+                                        { src: 'plugin/markdown/marked.js' },
+                                        { src: 'plugin/markdown/markdown.js' },
+                                        { src: 'plugin/notes/notes.js', async: true },
+                                        { src: 'plugin/highlight/highlight.js', async: true }
+                                ],
+                                // center: false,
+                        });
+                </script>
+        </body>
 </html>
